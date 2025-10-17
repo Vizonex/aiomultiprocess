@@ -9,7 +9,6 @@ import multiprocessing.managers
 import os
 import sys
 from typing import Any, Callable, Dict, Optional, Sequence
-
 from .types import Context, R, Unit
 
 DEFAULT_START_METHOD = "spawn"
@@ -114,7 +113,7 @@ class Process:
             initargs=initargs,
             loop_initializer=loop_initializer,
         )
-        self.aio_process = context.Process(  # type: ignore[attr-defined]
+        self.aio_process: multiprocessing.Process = context.Process(  # type: ignore[attr-defined]
             group=group,
             target=process_target or Process.run_async,
             args=(self.unit,),
@@ -159,12 +158,13 @@ class Process:
         """Wait for the process to finish execution without blocking the main thread."""
         if not self.is_alive() and self.exitcode is None:
             raise ValueError("must start process before joining it")
+        
+        # TODO: Something more fine-tuned or find a way to hook
+        # a callback to signal to indicate that the process finished.
+        return await asyncio.to_thread(self.aio_process.join, timeout)
 
-        if timeout is not None:
-            return await asyncio.wait_for(self.join(), timeout)
 
-        while self.exitcode is None:
-            await asyncio.sleep(0.005)
+        
 
     @property
     def name(self) -> str:
