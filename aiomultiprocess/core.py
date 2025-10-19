@@ -158,10 +158,12 @@ class Process:
         """Wait for the process to finish execution without blocking the main thread."""
         if not self.is_alive() and self.exitcode is None:
             raise ValueError("must start process before joining it")
+
+        if timeout:
+            return await asyncio.wait_for(self.join, timeout)
         
-        # TODO: Something more fine-tuned or find a way to hook
-        # a callback to signal to indicate that the process finished.
-        return await asyncio.to_thread(self.aio_process.join, timeout)
+        while self.exitcode is None:
+            await asyncio.to_thread(self.aio_process.join, 0.005)
 
 
         
